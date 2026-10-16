@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Programme Perso</title>
+<meta name="description" content="Vos plateformes, vos goûts : les meilleurs films et séries pour vous ce soir.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Grille TV en trois étapes, puis un programme du soir en cartes-affiches. Données : API TMDB (région FR). */
+:root{
+  --bg:#F2F3F7; --surface:#FFFFFF; --ink:#151A2D; --muted:#5E6378; --line:#DADCE6;
+  --accent:#D9412F; --accent-ink:#FFFFFF; --gold:#E9A82C; --chip:#E7E9F1;
+  --display:"Anton","Impact","Arial Narrow",sans-serif;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E1120; --surface:#171B2E; --ink:#EDEFF7; --muted:#9BA0B7; --line:#2A2F47;
+  --accent:#FF6A57; --accent-ink:#1A0B08; --gold:#F2BC4E; --chip:#232842; color-scheme:dark}}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+img{max-width:100%}
+[hidden]{display:none!important}
+.wrap{max-width:880px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:6px}
+.headrow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(38px,9vw,64px);line-height:.95;letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:52ch}
+.iconbtn{all:unset;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);padding:6px 10px;border:1.5px solid var(--line);border-radius:999px;white-space:nowrap}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.steps button{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.steps button::before{content:"";height:4px;border-radius:2px;background:var(--line)}
+.steps button.done::before{background:var(--ink)}
+.steps button.on{color:var(--ink)} .steps button.on::before{background:var(--accent)}
+.steps button:focus-visible,.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+section h2{font-size:20px;margin:0 0 4px;text-wrap:balance}
+section .hint{color:var(--muted);margin:0 0 14px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.opt{position:relative;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;font-weight:600;user-select:none;min-width:0}
+.opt > span.lbl{min-width:0;overflow-wrap:anywhere;font-size:14px}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt .dot{width:30px;height:30px;border-radius:7px;flex:none;display:grid;place-items:center;color:#fff;font-family:var(--display);font-size:14px;overflow:hidden;background:var(--chip)}
+.opt .dot img{width:100%;height:100%;object-fit:cover}
+.opt:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.opt .tick{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);flex:none}
+.opt:has(input:checked) .tick{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--surface)}
+.big{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.big .opt{flex-direction:column;align-items:flex-start;padding:18px;gap:4px}
+.big .opt b{font-family:var(--display);font-weight:400;font-size:28px;text-transform:uppercase;letter-spacing:.02em}
+.big .opt span{color:var(--muted);font-weight:500;font-size:14px}
+.big .opt .tick{position:absolute;top:14px;right:14px}
+.docbox{margin-top:18px;padding:16px;border-radius:12px;background:var(--chip)}
+.docbox h3{margin:0 0 2px;font-size:16px}
+.nav{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap}
+.btn{all:unset;cursor:pointer;padding:12px 20px;border-radius:999px;font-weight:700;font-size:15px;text-align:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{color:var(--ink);border:1.5px solid var(--line)}
+.btn.small{padding:8px 16px;font-size:13px}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.err{color:var(--accent);font-size:14px;font-weight:600}
+.keybox{display:flex;flex-direction:column;gap:12px;max-width:560px}
+.keybox input{font:inherit;font-family:var(--mono);font-size:13px;padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.keybox input:focus{outline:2px solid var(--accent);border-color:transparent}
+.keybox ol{margin:0;padding-left:20px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.keybox a{color:var(--accent)}
+.summary{display:flex;flex-direction:column;gap:8px}
+.sumrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sumrow .lbl{font-size:12px;color:var(--muted);font-weight:600;margin-right:2px}
+.tg{all:unset;cursor:pointer;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;border:1.5px solid transparent;white-space:nowrap;background:var(--chip);color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.tg img{width:16px;height:16px;border-radius:4px}
+.tg.off{background:transparent;color:var(--muted);border-color:var(--line);text-decoration:line-through}
+.tg.off img{opacity:.4}
+.tg:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{all:unset;cursor:pointer;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.seg button:focus-visible{outline:2px solid var(--accent)}
+.list{display:flex;flex-direction:column;gap:12px}
+.card{display:grid;grid-template-columns:auto 1fr;background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.poster{width:120px;aspect-ratio:2/3;max-width:100%;align-self:start;position:relative;overflow:hidden;background:var(--chip)}
+.poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.poster .ph{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;color:#fff;font-family:var(--display);text-transform:uppercase;line-height:1;font-size:16px;overflow-wrap:anywhere}
+.poster .rank{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.6);color:#fff;padding:2px 7px;border-radius:999px}
+.body{padding:14px 16px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.card h3{margin:0;font-size:19px;line-height:1.2;text-wrap:balance}
+.meta{font-size:13px;color:var(--muted)}
+.match{font-family:var(--mono);font-size:12px;color:var(--accent);white-space:nowrap}
+.score{font-family:var(--mono);font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.score::before{content:"★ ";color:var(--gold)}
+.pitch{margin:0;font-size:14.5px;max-width:62ch;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tag{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.tag.hit{border-color:var(--ink);color:var(--ink);font-weight:600}
+.prov{width:24px;height:24px;border-radius:6px}
+.actions{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;font-weight:600}
+.actions a,.actions button{all:unset;cursor:pointer;color:var(--accent)}
+.actions button{color:var(--muted)}
+.actions a:focus-visible,.actions button:focus-visible{outline:2px solid var(--accent)}
+.empty{padding:28px;text-align:center;border:1.5px dashed var(--line);border-radius:14px;color:var(--muted)}
+.loading{display:flex;flex-direction:column;gap:12px}
+.loading div{height:140px;border-radius:14px;background:linear-gradient(90deg,var(--chip),var(--surface),var(--chip));background-size:200% 100%;animation:sh 1.2s infinite linear}
+@keyframes sh{to{background-position:-200% 0}}
+.foot{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.foot button{all:unset;cursor:pointer;text-decoration:underline}
+.foot a{color:inherit}
+@media (max-width:480px){.poster{width:96px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="headrow">
+      <span class="eyebrow">Ce soir sur vos plateformes</span>
+      <button class="iconbtn" id="keyBtn" hidden>Clé TMDB</button>
+    </div>
+    <h1>Programme perso</h1>
+    <p class="lede">Dites ce que vous avez et ce que vous aimez. On vous sort les meilleurs films et séries disponibles chez vous.</p>
+  </header>
+
+  <!-- Clé API -->
+  <section id="sk" hidden>
+    <div class="keybox">
+      <h2>Connectez votre clé TMDB</h2>
+      <p class="hint" style="margin:0">Elle reste enregistrée dans ce navigateur uniquement. Elle ne figure pas dans le code du site.</p>
+      <ol>
+        <li>Créez un compte gratuit sur <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a>.</li>
+        <li>Allez dans <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Paramètres › API</a> et demandez une clé (usage personnel).</li>
+        <li>Collez ici la « Clé d'API » ou le « Jeton d'accès en lecture ».</li>
+      </ol>
+      <label for="keyInput" class="hint" style="margin:0">Clé ou jeton TMDB</label>
+      <input id="keyInput" type="password" autocomplete="off" spellcheck="false" placeholder="ex. 3f2c…  ou  eyJhbGciOi…">
+      <div class="nav" style="margin-top:0"><span class="err" id="ek"></span><button class="btn primary" id="keySave">Valider la clé</button></div>
+    </div>
+  </section>
+
+  <nav class="steps" aria-label="Étapes" id="stepsNav" hidden>
+    <button data-go="0">Plateformes</button>
+    <button data-go="1">Goûts</button>
+    <button data-go="2">Format</button>
+    <button data-go="3">Programme</button>
+  </nav>
+
+  <section id="s0" hidden>
+    <h2>Vos abonnements</h2>
+    <p class="hint">Cochez toutes les plateformes auxquelles vous avez accès en France.</p>
+    <div class="grid" id="platGrid"><div class="hint">Chargement des plateformes…</div></div>
+    <div class="nav"><button class="btn ghost small" id="morePlats" hidden>Voir plus de plateformes</button><span class="err" id="e0"></span><button class="btn primary" data-next="1">Suivant</button></div>
+  </section>
+
+  <section id="s1" hidden>
+    <h2>Vos genres préférés</h2>
+    <p class="hint">Choisissez-en au moins un. Plus vous en cochez, plus le programme sera varié.</p>
+    <div class="grid" id="genreGrid"></div>
+    <div id="docBox" class="docbox" hidden>
+      <h3>Quel type de documentaire ?</h3>
+      <p class="hint">Laissez tout décoché pour recevoir tous les types.</p>
+      <div class="grid" id="docGrid"></div>
+    </div>
+    <div class="nav"><button class="btn ghost" data-go="0">Retour</button><span class="err" id="e1"></span><button class="btn primary" data-next="2">Suivant</button></div>
+  </section>
+
+  <section id="s2" hidden>
+    <h2>Film ou série ?</h2>
+    <p class="hint">Selon le temps que vous avez devant vous.</p>
+    <div class="grid big">
+      <label class="opt"><input type="radio" name="type" id="t-film" value="film"><b>Film</b><span>Une soirée, une histoire</span><i class="tick"></i></label>
+      <label class="opt"><input type="radio" name="type" id="t-serie" value="serie"><b>Série</b><span>De quoi tenir plusieurs soirs</span><i class="tick"></i></label>
+      <label class="opt"><input type="radio" name="type" id="t-both" value="both" checked><b>Les deux</b><span>Surprenez-moi</span><i class="tick"></i></label>
+    </div>
+    <div class="nav"><button class="btn ghost" data-go="1">Retour</button><button class="btn primary" data-next="3">Voir mon programme</button></div>
+  </section>
+
+  <section id="s3" hidden>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="summary" id="summary"></div>
+      <div class="filters">
+        <div class="seg" id="seg" role="group" aria-label="Format">
+          <button data-t="both">Tout</button><button data-t="film">Films</button><button data-t="serie">Séries</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ghost small" id="refresh">Actualiser</button>
+          <button class="btn ghost small" data-go="0">Modifier mes choix</button>
+        </div>
+      </div>
+      <div class="list" id="list"></div>
+      <div class="foot">
+        <button id="resetSeen" hidden>Réafficher les titres déjà vus</button>
+        <span>Ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Disponibilités fournies par <a href="https://www.justwatch.com/fr" target="_blank" rel="noopener">JustWatch</a>.</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const API="https://api.themoviedb.org/3", IMG="https://image.tmdb.org/t/p/";
+const KEY_STORE="pp-tmdb-key", PREF_STORE="pp-prefs-v1";
+const PINNED=[8,119,337,381,350,1899,531,234]; // Netflix, Prime Video, Disney+, Canal+, Apple TV, HBO Max, Paramount+, Arte
+
+const GENRES=[
+ {n:"Action",m:28,t:10759},{n:"Comédie",m:35,t:35},{n:"Drame",m:18,t:18},{n:"Thriller",m:53,t:9648},
+ {n:"Policier",m:80,t:80},{n:"Science-fiction",m:878,t:10765},{n:"Fantastique",m:14,t:10765},{n:"Horreur",m:27,t:null},
+ {n:"Animation",m:16,t:16},{n:"Romance",m:10749,t:null},{n:"Historique",m:36,t:10768},{n:"Famille",m:10751,t:10751},
+ {n:"Documentaire",m:99,t:99}
+];
+const GCOL={"Action":"#C2412D","Comédie":"#D99A1E","Drame":"#4C5A8A","Thriller":"#2E3B4E","Policier":"#6B3B3B","Science-fiction":"#1F7A8C","Fantastique":"#6C3FA0","Horreur":"#5A1F2A","Animation":"#2F8F5B","Romance":"#C04A7A","Historique":"#7A5A2E","Famille":"#3A7AB0","Documentaire":"#3D6B4F"};
+const DOCS=[
+ {n:"Nature",q:["nature","wildlife"]},{n:"Science",q:["science","space"]},{n:"Histoire",q:["history","world war ii"]},
+ {n:"Sport",q:["sport","sports documentary"]},{n:"Faits divers",q:["true crime","murder investigation"]},
+ {n:"Société",q:["social issues","politics"]},{n:"Musique",q:["music","musician"]},{n:"Portraits",q:["biography"]}
+];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+let KEY=ls.get(KEY_STORE,"");
+let S={plats:[],platInfo:{},genres:[],docs:[],type:"both",seen:[],...ls.get(PREF_STORE,{})};
+const save=()=>ls.set(PREF_STORE,S);
+
+// ---------- TMDB ----------
+const cache=new Map();
+async function tm(path,params={},key=KEY){
+  const u=new URL(API+path);
+  const p={language:"fr-FR",...params};
+  const bearer=key.startsWith("eyJ");
+  if(!bearer)p.api_key=key;
+  Object.entries(p).forEach(([k,v])=>v!=null&&v!==""&&u.searchParams.set(k,v));
+  const id=u.toString();
+  if(cache.has(id))return cache.get(id);
+  const pr=fetch(u,{headers:bearer?{Authorization:"Bearer "+key,accept:"application/json"}:{accept:"application/json"}})
+    .then(async r=>{if(!r.ok){const e=new Error("TMDB "+r.status);e.status=r.status;throw e}return r.json()});
+  cache.set(id,pr); pr.catch(()=>cache.delete(id));
+  return pr;
+}
+async function pool(items,n,fn){const out=new Array(items.length);let i=0;await Promise.all(Array.from({length:n},async()=>{while(i<items.length){const j=i++;try{out[j]=await fn(items[j])}catch(e){out[j]=null}}}));return out}
+
+// ---------- Clé ----------
+function showKey(){
+  ["s0","s1","s2","s3"].forEach(id=>$("#"+id).hidden=true);$("#stepsNav").hidden=true;$("#sk").hidden=false;$("#keyBtn").hidden=!KEY;
+  $("#keyInput").value="";$("#keyInput").focus();
+}
+$("#keySave").onclick=async()=>{
+  const k=$("#keyInput").value.trim();
+  if(!k){$("#ek").textContent="Collez votre clé TMDB.";return}
+  $("#ek").textContent="Vérification…";
+  try{await tm("/configuration",{language:null},k);KEY=k;ls.set(KEY_STORE,k);$("#ek").textContent="";cache.clear();start()}
+  catch(e){$("#ek").textContent=e.status===401?"Clé refusée par TMDB. Vérifiez-la et réessayez.":"Impossible de joindre TMDB. Vérifiez votre connexion."}
+};
+$("#keyInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("#keySave").click()});
+$("#keyBtn").onclick=showKey;
+
+// ---------- Plateformes ----------
+let ALLPROV=[],showAll=false;
+async function loadProviders(){
+  if(ALLPROV.length)return renderPlats();
+  try{
+    const [m,t]=await Promise.all([tm("/watch/providers/movie",{watch_region:"FR"}),tm("/watch/providers/tv",{watch_region:"FR"})]);
+    const map=new Map();
+    [...m.results,...t.results].forEach(p=>{const pr=p.display_priorities?.FR??p.display_priority??999;const o=map.get(p.provider_id);if(!o||pr<o.pr)map.set(p.provider_id,{id:p.provider_id,name:p.provider_name,logo:p.logo_path,pr})});
+    ALLPROV=[...map.values()].sort((a,b)=>{const ia=PINNED.indexOf(a.id),ib=PINNED.indexOf(b.id);if(ia>-1||ib>-1)return (ia<0?99:ia)-(ib<0?99:ib);return a.pr-b.pr});
+    renderPlats();
+  }catch(e){$("#platGrid").innerHTML=`<div class="err">Impossible de charger les plateformes (${esc(e.message)}).</div>`}
+}
+function renderPlats(){
+  const base=ALLPROV.slice(0,showAll?80:16);
+  const extra=ALLPROV.filter(p=>S.plats.includes(p.id)&&!base.includes(p));
+  $("#platGrid").innerHTML=[...base,...extra].map(p=>
+   `<label class="opt"><input type="checkbox" id="p-${p.id}" value="${p.id}" ${S.plats.includes(p.id)?"checked":""}><span class="dot">${p.logo?`<img src="${IMG}w92${p.logo}" alt="" loading="lazy">`:esc(p.name[0])}</span><span class="lbl">${esc(p.name)}</span><i class="tick"></i></label>`).join("");
+  $("#morePlats").hidden=showAll||ALLPROV.length<=16;
+}
+$("#morePlats").onclick=()=>{showAll=true;renderPlats()};
+
+// ---------- Goûts ----------
+$("#genreGrid").innerHTML=GENRES.map((g,i)=>
+ `<label class="opt"><input type="checkbox" id="g-${i}" value="${g.n}" ${S.genres.includes(g.n)?"checked":""}><span class="dot" style="background:${GCOL[g.n]}">${g.n[0]}</span><span class="lbl">${g.n}</span><i class="tick"></i></label>`).join("");
+$("#docGrid").innerHTML=DOCS.map((d,i)=>`<label class="opt"><input type="checkbox" id="d-${i}" value="${d.n}" ${S.docs.includes(d.n)?"checked":""}><span class="lbl">${d.n}</span><i class="tick"></i></label>`).join("");
+document.querySelectorAll('input[name=type]').forEach(r=>r.checked=r.value===S.type);
+const syncDoc=()=>$("#docBox").hidden=!S.genres.includes("Documentaire");
+
+let dirty=true;
+function read(){
+  const plats=[...document.querySelectorAll("#platGrid input:checked")].map(i=>+i.value);
+  if(ALLPROV.length){S.plats=plats;S.platInfo={};ALLPROV.filter(p=>plats.includes(p.id)).forEach(p=>S.platInfo[p.id]={name:p.name,logo:p.logo})}
+  S.genres=[...document.querySelectorAll("#genreGrid input:checked")].map(i=>i.value);
+  S.docs=[...document.querySelectorAll("#docGrid input:checked")].map(i=>i.value);
+  S.type=(document.querySelector("input[name=type]:checked")||{}).value||"both";
+  save();syncDoc();
+}
+document.addEventListener("change",e=>{if(e.target.closest("#platGrid,#genreGrid,#docGrid"))dirty=true;read()});
+
+// ---------- Navigation ----------
+function go(n){
+  read();
+  if(n>=1&&!S.plats.length){n=0;$("#e0").textContent="Cochez au moins une plateforme."}
+  else if(n>=2&&!S.genres.length){n=1;$("#e1").textContent="Cochez au moins un genre."}
+  else{$("#e0").textContent="";$("#e1").textContent=""}
+  $("#sk").hidden=true;$("#stepsNav").hidden=false;$("#keyBtn").hidden=false;
+  [0,1,2,3].forEach(i=>$("#s"+i).hidden=i!==n);
+  document.querySelectorAll(".steps button").forEach((b,i)=>{b.classList.toggle("on",i===n);b.classList.toggle("done",i<n)});
+  if(n===0)loadProviders();
+  if(n===3){dirty?fetchProgramme():render()}
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+// ---------- Recherche ----------
+let DATA=[];
+const OFF={p:new Set(),g:new Set(),d:new Set()};
+async function kwIds(doc){
+  const store=ls.get("pp-kw",{});
+  if(store[doc.n])return store[doc.n];
+  const ids=[];
+  for(const q of doc.q){try{const r=await tm("/search/keyword",{query:q,language:null});const ex=r.results.find(k=>k.name.toLowerCase()===q)||r.results[0];if(ex)ids.push(ex.id)}catch(e){}}
+  store[doc.n]=ids;ls.set("pp-kw",store);return ids;
+}
+async function fetchProgramme(){
+  $("#list").innerHTML=`<div class="loading" aria-label="Chargement"><div></div><div></div><div></div></div>`;
+  renderSummary();
+  try{
+    const kinds=["movie","tv"];
+    const docSel=S.genres.includes("Documentaire");
+    const docTypes=S.docs.length?DOCS.filter(d=>S.docs.includes(d.n)):[];
+    const kwMap={}; // docName -> keyword ids
+    for(const d of DOCS)if(docSel)kwMap[d.n]=await kwIds(d);
+    const common={watch_region:"FR",with_watch_providers:S.plats.join("|"),with_watch_monetization_types:"flatrate|free|ads",include_adult:false};
+    const reqs=[];
+    for(const k of kinds){
+      const gids=[...new Set(S.genres.filter(g=>g!=="Documentaire").map(g=>GENRES.find(x=>x.n===g)[k==="movie"?"m":"t"]).filter(Boolean))];
+      const minVotes=k==="movie"?400:150;
+      const add=(extra)=>{
+        reqs.push({k,p:{...common,...extra,sort_by:"vote_average.desc","vote_count.gte":minVotes,page:1}});
+        reqs.push({k,p:{...common,...extra,sort_by:"vote_average.desc","vote_count.gte":minVotes,page:2}});
+        reqs.push({k,p:{...common,...extra,sort_by:"popularity.desc","vote_count.gte":Math.round(minVotes/3),page:1}});
+      };
+      if(gids.length)add({with_genres:gids.join("|"),without_genres:"99"});
+      if(docSel){
+        const kws=docTypes.flatMap(d=>kwMap[d.n]||[]);
+        add({with_genres:"99",with_keywords:kws.length?kws.join("|"):null,"vote_count.gte":30});
+      }
+    }
+    const res=await pool(reqs,6,r=>tm("/discover/"+r.k,r.p).then(j=>j.results.map(x=>({...x,kind:r.k}))));
+    const seen=new Map();
+    res.flat().filter(Boolean).forEach(x=>{const id=x.kind+x.id;if(!seen.has(id))seen.set(id,x)});
+    const cands=[...seen.values()].map(x=>({...x,...score(x)})).filter(x=>x.hits.length).sort((a,b)=>b.score-a.score);
+    // détails (plateformes FR, bande-annonce, mots-clés) pour les meilleurs de chaque format
+    const top=[...cands.filter(x=>x.kind==="movie").slice(0,30),...cands.filter(x=>x.kind==="tv").slice(0,30)];
+    const det=await pool(top,6,x=>tm(`/${x.kind}/${x.id}`,{append_to_response:"videos,watch/providers,keywords",include_video_language:"fr,en,null"}));
+    DATA=top.map((x,i)=>enrich(x,det[i],kwMap)).filter(Boolean);
+    dirty=false; render();
+  }catch(e){
+    $("#list").innerHTML=`<div class="empty">${e.status===401?"Votre clé TMDB n'est plus valide. Touchez « Clé TMDB » en haut pour la remplacer.":"Impossible de joindre TMDB pour le moment. Réessayez avec « Actualiser »."}</div>`;
+  }
+}
+function gNames(x){
+  const ids=x.genre_ids||(x.genres||[]).map(g=>g.id);
+  return GENRES.filter(g=>ids.includes(x.kind==="movie"?g.m:g.t)).map(g=>g.n);
+}
+function score(x){
+  const names=gNames(x);
+  const hits=names.filter(n=>S.genres.includes(n));
+  const cover=hits.length/Math.max(1,Math.min(names.length,S.genres.length));
+  const q=Math.max(0,Math.min(1,((x.vote_average||0)-6)/2.8));
+  const pop=Math.min(1,Math.log10(1+(x.popularity||0))/3);
+  const sc=.5*cover+.38*q+.12*pop;
+  return {names,hits,score:sc,q,pop};
+}
+function enrich(x,d,kwMap){
+  if(!d)return null;
+  const fr=d["watch/providers"]?.results?.FR||{};
+  const provs=[...(fr.flatrate||[]),...(fr.free||[]),...(fr.ads||[])];
+  const vids=(d.videos?.results||[]).filter(v=>v.site==="YouTube"&&(v.type==="Trailer"||v.type==="Teaser"));
+  const tr=vids.find(v=>v.iso_639_1==="fr"&&v.type==="Trailer")||vids.find(v=>v.iso_639_1==="fr")||vids.find(v=>v.type==="Trailer")||vids[0];
+  const kws=(d.keywords?.keywords||d.keywords?.results||[]).map(k=>k.id);
+  const docs=Object.entries(kwMap).filter(([n,ids])=>ids.some(i=>kws.includes(i))).map(([n])=>n);
+  return {
+    id:x.id,kind:x.kind,key:x.kind+x.id,
+    title:d.title||d.name||x.title||x.name,
+    year:(d.release_date||d.first_air_date||"").slice(0,4),
+    overview:d.overview||x.overview||"",
+    poster:d.poster_path||x.poster_path,
+    rating:d.vote_average||x.vote_average||0,
+    names:x.names,hits:x.hits,score:x.score,q:x.q,pop:x.pop,
+    provs:provs.filter((p,i,a)=>a.findIndex(q=>q.provider_id===p.provider_id)===i),
+    trailer:tr?.key||null,
+    seasons:d.number_of_seasons||null,runtime:d.runtime||null,
+    docs,link:fr.link||null
+  };
+}
+
+// ---------- Affichage ----------
+function renderSummary(){
+  const docOn=S.genres.includes("Documentaire")&&!OFF.g.has("Documentaire");
+  const dtypes=S.docs.length?S.docs:DOCS.map(d=>d.n);
+  $("#summary").innerHTML=
+   `<div class="sumrow"><span class="lbl">Plateformes</span>${S.plats.map(id=>{const p=S.platInfo[id]||{name:"#"+id};return `<button class="tg ${OFF.p.has(id)?"off":""}" data-fp="${id}" aria-pressed="${!OFF.p.has(id)}">${p.logo?`<img src="${IMG}w45${p.logo}" alt="">`:""}${esc(p.name)}</button>`}).join("")}</div>`+
+   `<div class="sumrow"><span class="lbl">Genres</span>${S.genres.map(g=>`<button class="tg ${OFF.g.has(g)?"off":""}" data-fg="${g}" aria-pressed="${!OFF.g.has(g)}">${g}</button>`).join("")}</div>`+
+   (docOn?`<div class="sumrow"><span class="lbl">Documentaires</span>${dtypes.map(d=>`<button class="tg ${OFF.d.has(d)?"off":""}" data-fd="${d}" aria-pressed="${!OFF.d.has(d)}">${d}</button>`).join("")}</div>`:"");
+}
+function docOk(x,D){
+  if(!x.names.includes("Documentaire"))return true;
+  if(x.docs.length)return x.docs.some(d=>D.includes(d));
+  return !S.docs.length&&OFF.d.size===0; // type inconnu : gardé seulement si tous les types sont acceptés
+}
+function render(){
+  document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.t===S.type));
+  renderSummary();
+  $("#resetSeen").hidden=!S.seen.length;
+  const P=S.plats.filter(id=>!OFF.p.has(id)), G=S.genres.filter(g=>!OFF.g.has(g));
+  const D=(S.docs.length?S.docs:DOCS.map(d=>d.n)).filter(d=>!OFF.d.has(d));
+  if(!P.length||!G.length){$("#list").innerHTML=`<div class="empty">${!P.length?"Toutes les plateformes sont décochées.":"Tous les genres sont décochés."}<br>Touchez une vignette pour la réactiver.</div>`;return}
+  const kind=S.type==="film"?"movie":S.type==="serie"?"tv":null;
+  const list=DATA.filter(x=>(!kind||x.kind===kind)&&!S.seen.includes(x.key)
+     &&x.provs.some(p=>P.includes(p.provider_id))
+     &&x.names.some(n=>G.includes(n))
+     &&docOk(x,D))
+   .map(x=>{const hits=x.names.filter(n=>G.includes(n));const cover=hits.length/Math.max(1,Math.min(x.names.length,G.length));return {...x,hits,rank:.5*cover+.38*x.q+.12*x.pop}})
+   .sort((a,b)=>b.rank-a.rank).slice(0,20);
+  if(!list.length){$("#list").innerHTML=`<div class="empty">Rien qui colle à ces critères sur vos plateformes.<br>Réactivez une vignette, ajoutez un genre ou passez sur « Tout ».</div>`;return}
+  $("#list").innerHTML=list.map((x,i)=>{
+    const match=Math.round(Math.max(.3,Math.min(.99,x.rank))*100);
+    const tq=encodeURIComponent(`${x.title} ${x.year} bande annonce VF`);
+    const trailer=x.trailer?`https://www.youtube.com/watch?v=${x.trailer}`:`https://www.youtube.com/results?search_query=${tq}`;
+    const where=`https://www.themoviedb.org/${x.kind}/${x.id}/watch?locale=FR`;
+    const extra=x.kind==="tv"&&x.seasons?` · ${x.seasons} saison${x.seasons>1?"s":""}`:x.runtime?` · ${Math.floor(x.runtime/60)}h${String(x.runtime%60).padStart(2,"0")}`:"";
+    const mine=x.provs.filter(p=>S.plats.includes(p.provider_id));
+    return `<article class="card">
+      <div class="poster">${x.poster?`<img src="${IMG}w342${x.poster}" alt="Affiche de ${esc(x.title)}" loading="lazy">`:`<div class="ph" style="background:${GCOL[x.names[0]]||"#444"}">${esc(x.title)}</div>`}<span class="rank">#${i+1}</span></div>
+      <div class="body">
+        <div class="top"><div><h3>${esc(x.title)}</h3><div class="meta">${x.kind==="movie"?"Film":"Série"} · ${esc(x.year)}${extra} · <span class="match">${match}% pour vous</span></div></div><span class="score">${x.rating.toFixed(1)}</span></div>
+        <p class="pitch">${esc(x.overview||"Pas de résumé en français.")}</p>
+        <div class="tags">${mine.map(p=>`<img class="prov" src="${IMG}w92${p.logo_path}" alt="${esc(p.provider_name)}" title="${esc(p.provider_name)}">`).join("")}${x.names.map(n=>`<span class="tag ${G.includes(n)?"hit":""}">${n==="Documentaire"&&x.docs.length?"Documentaire · "+x.docs.slice(0,2).join(", "):n}</span>`).join("")}</div>
+        <div class="actions"><a href="${trailer}" target="_blank" rel="noopener">▶ Bande-annonce</a><a href="${where}" target="_blank" rel="noopener">Où regarder ↗</a><button data-seen="${x.key}">Déjà vu, masquer</button></div>
+      </div></article>`}).join("");
+}
+
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-go],[data-next]");
+  if(g){go(+(g.dataset.go??g.dataset.next));return}
+  const t=e.target.closest("#seg button");
+  if(t){S.type=t.dataset.t;document.querySelectorAll('input[name=type]').forEach(r=>r.checked=r.value===S.type);save();render();return}
+  const f=e.target.closest("[data-fp],[data-fg],[data-fd]");
+  if(f){const [set,v]=f.dataset.fp?[OFF.p,+f.dataset.fp]:f.dataset.fg?[OFF.g,f.dataset.fg]:[OFF.d,f.dataset.fd];set.has(v)?set.delete(v):set.add(v);render();return}
+  const s=e.target.closest("[data-seen]");
+  if(s){S.seen.push(s.dataset.seen);save();render();return}
+  if(e.target.id==="resetSeen"){S.seen=[];save();render();return}
+  if(e.target.id==="refresh"){cache.clear();fetchProgramme()}
+});
+
+function start(){
+  syncDoc();
+  if(!KEY)return showKey();
+  if(S.plats.length&&S.genres.length){loadProviders();go(3)}else go(0);
+}
+start();
+</script>
+</body>
+</html>

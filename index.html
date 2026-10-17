@@ -215,6 +215,17 @@ section h2{font-family:var(--display);font-weight:700;font-size:20px;letter-spac
 .sheet p{margin:0;font-size:15px}
 .sheet .actions{gap:8px}
 .sheet .act{padding:10px 14px;font-size:14px}
+/* ---------- Lecteur bande-annonce ---------- */
+.player{position:fixed;inset:0;z-index:60;background:rgba(3,4,10,.97);display:flex;flex-direction:column;justify-content:center;gap:14px;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) max(12px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(12px,env(safe-area-inset-left,0px));
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.player.open{opacity:1;pointer-events:auto}
+.player .bar{display:flex;align-items:center;gap:10px;color:#fff;max-width:960px;width:100%;margin:0 auto}
+.player .bar b{font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:-.02em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .bar .round{background:rgba(255,255,255,.14);color:#fff}
+.player .frame{position:relative;width:100%;max-width:960px;margin:0 auto;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 20px 60px -20px #000}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.player .yt{align-self:center;color:rgba(255,255,255,.7);font-size:13px;font-weight:600;text-decoration:underline}
 @media (max-width:480px){.poster{width:96px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
@@ -338,6 +349,11 @@ section h2{font-family:var(--display);font-weight:700;font-size:20px;letter-spac
   </div>
 </nav>
 
+<div class="player" id="player" role="dialog" aria-modal="true" aria-labelledby="plTitle" aria-hidden="true">
+  <div class="bar"><b id="plTitle"></b><button class="round" id="plClose" aria-label="Fermer la bande-annonce"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="frame" id="plFrame"></div>
+  <a class="yt" id="plYt" href="#" target="_blank" rel="noopener">La vidéo ne se lance pas ? Ouvrir dans YouTube</a>
+</div>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle" aria-hidden="true"></div>
 
@@ -629,6 +645,7 @@ const ICON={
   undo:`<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>`
 };
 const trailerUrl=x=>x.trailer?`https://www.youtube.com/watch?v=${x.trailer}`:`https://www.youtube.com/results?search_query=${encodeURIComponent(`${x.title} ${x.year} bande annonce VF`)}`;
+const trailerBtn=x=>x.trailer?`<button class="act primary" data-play="${x.key}">${ICON.play}Bande-annonce</button>`:`<a class="act primary" href="${trailerUrl(x)}" target="_blank" rel="noopener">${ICON.play}Bande-annonce</a>`;
 const whereUrl=x=>`https://www.themoviedb.org/${x.kind}/${x.id}/watch?locale=FR`;
 const metaLine=x=>{
   const extra=x.kind==="tv"&&x.seasons?` · ${x.seasons} saison${x.seasons>1?"s":""}`:x.kind==="movie"&&x.runtime?` · ${Math.floor(x.runtime/60)}h${String(x.runtime%60).padStart(2,"0")}`:"";
@@ -649,7 +666,7 @@ function card(x,i,mode="home"){
       <p class="pitch">${esc(x.overview||"Pas de résumé en français.")}</p>
       <div class="tags">${(mine.length?mine:x.provs.slice(0,3)).map(p=>`<img class="prov" src="${IMG}w92${p.logo_path}" alt="${esc(p.provider_name)}" title="${esc(p.provider_name)}">`).join("")}${x.names.map(n=>`<span class="tag ${G.includes(n)?"hit":""}">${n==="Documentaire"&&x.docs.length?"Doc · "+x.docs.slice(0,2).join(", "):n}</span>`).join("")}</div>
       <div class="actions">
-        <a class="act primary" href="${trailerUrl(x)}" target="_blank" rel="noopener">${ICON.play}Bande-annonce</a>
+        ${trailerBtn(x)}
         ${mode==="seen"?`<button class="act" data-unseen="${x.key}">${ICON.undo}Remettre</button>`:`<button class="act ${inList?"saved":""}" data-save="${x.key}" aria-pressed="${inList}">${inList?ICON.saved+"Dans ma liste":ICON.save+"Ma liste"}</button>`}
         ${mode!=="seen"?`<button class="act" data-seen="${x.key}">${ICON.eye}Déjà vu</button>`:""}
       </div>
@@ -709,7 +726,7 @@ function openSheet(k,surprise=false){
       <div class="tags">${(mine.length?mine:x.provs).map(p=>`<img class="prov" src="${IMG}w92${p.logo_path}" alt="${esc(p.provider_name)}" title="${esc(p.provider_name)}">`).join("")}${x.names.map(n=>`<span class="tag">${n}</span>`).join("")}</div>
       <p>${esc(x.overview||"Pas de résumé en français.")}</p>
       <div class="actions">
-        <a class="act primary" href="${trailerUrl(x)}" target="_blank" rel="noopener">${ICON.play}Bande-annonce</a>
+        ${trailerBtn(x)}
         <button class="act ${inList?"saved":""}" data-save="${k}">${inList?ICON.saved+"Dans ma liste":ICON.save+"Ma liste"}</button>
         <a class="act" href="${whereUrl(x)}" target="_blank" rel="noopener">${ICON.ext}Où regarder</a>
         ${seen?`<button class="act" data-unseen="${k}">${ICON.undo}Remettre</button>`:`<button class="act" data-seen="${k}">${ICON.eye}Déjà vu</button>`}
@@ -724,7 +741,24 @@ function closeSheet(){
   lastFocus?.focus?.();
 }
 $("#scrim").onclick=closeSheet;
-addEventListener("keydown",e=>{if(e.key==="Escape"&&sheetKey)closeSheet()});
+let playerFocus=null;
+function openPlayer(k){
+  const x=find(k);if(!x||!x.trailer)return;
+  playerFocus=document.activeElement;
+  $("#plTitle").textContent=`${x.title} · bande-annonce`;
+  $("#plYt").href=`https://www.youtube.com/watch?v=${x.trailer}`;
+  $("#plFrame").innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(x.trailer)}?autoplay=1&playsinline=1&rel=0&modestbranding=1&hl=fr&cc_lang_pref=fr" title="Bande-annonce de ${esc(x.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  $("#player").classList.add("open");$("#player").setAttribute("aria-hidden","false");document.documentElement.style.overflow="hidden";
+  setTimeout(()=>$("#plClose").focus(),60);
+}
+function closePlayer(){
+  if(!$("#player").classList.contains("open"))return false;
+  $("#player").classList.remove("open");$("#player").setAttribute("aria-hidden","true");
+  $("#plFrame").innerHTML="";document.documentElement.style.overflow="";playerFocus?.focus?.();return true;
+}
+$("#plClose").onclick=closePlayer;
+$("#player").addEventListener("click",e=>{if(e.target.id==="player")closePlayer()});
+addEventListener("keydown",e=>{if(e.key==="Escape"){if(closePlayer())return;if(sheetKey)closeSheet()}});
 let lastPick=null;
 function surprise(){
   if(!DATA_READY){if(VIEW!=="vHome")goHome();return}
@@ -753,6 +787,7 @@ document.addEventListener("click",e=>{
   if(e.target.closest("#filterToggle")){const f=$("#filters");f.hidden=!f.hidden;$("#filterToggle").setAttribute("aria-expanded",!f.hidden);renderTools();return}
   const f=e.target.closest("[data-fp],[data-fg],[data-fd]");
   if(f){const [set,v]=f.dataset.fp?[OFF.p,+f.dataset.fp]:f.dataset.fg?[OFF.g,f.dataset.fg]:[OFF.d,f.dataset.fd];set.has(v)?set.delete(v):set.add(v);render();return}
+  const pl=e.target.closest("[data-play]");if(pl){openPlayer(pl.dataset.play);return}
   const op=e.target.closest("[data-open]");if(op){openSheet(op.dataset.open);return}
   const sv=e.target.closest("[data-save]");
   if(sv){const k=sv.dataset.save,x=find(k);if(S.list[k])delete S.list[k];else if(x)S.list[k]=slim(x);save();refreshViews();return}
